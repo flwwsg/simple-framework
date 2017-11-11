@@ -24,6 +24,20 @@ class DataPicker(object):
 
 
 
+class DemoPicker(DataPicker):
+    def __init__(self):
+        pass
 
+    def filter(self):
+        return [{'id':1, 'name':'a'}, {'id':2, 'name':'b'}]
+
+    def get(self):
+        return {'id':1, 'name': 'a'}
+
+    def all(self):
+        return [{'id':1, 'name':'a'}, {'id':2, 'name':'b'}]
+
+    def save(self, data):
+        return data
 
 

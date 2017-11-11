@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 from utils import BindingDict
 from fields import CharField, Field, IntegerField
+from orm_wrapper import DemoPicker
 
 
 # get all fields 
@@ -72,6 +73,19 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
 
         # self.map_data()
 
+    def get(self, condition={}):
+        if not condition:
+            res = self.picker.all()
+            return self.to_representation(res)
+
+    def to_representation(self, res):
+        newdata = []
+        for ires in res:
+            tmp = {k:v.to_representation(ires[k]) for k, v in self.fields.items()}
+            newdata.append(tmp)
+
+        return newdata
+                
 
     # def map_data(self):
     #     self.data = []
@@ -80,21 +94,20 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
     #         self.data.append(tmp)
     
 
-    
+class FooSerializer(Serializer):
+    id = IntegerField()    
+    name = CharField()
         
 
 
 if __name__ == '__main__':
-    class FooSerializer(Serializer):
-        id = IntegerField(required=False)
-        name = CharField()
     data = [(1, 'a'), (2, 'b'), (3,'c')]
     newdata = []
     for idata in data:
         tmp = {k:v for k, v in zip(('id', 'name'), idata)}
         newdata.append(tmp)
-    
 
-    foo = FooSerializer(newdata)
-    print(foo.initial_data)
+    dp = DemoPicker()
+    foo = FooSerializer(dp)
+    print(foo.get())
 

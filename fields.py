@@ -70,9 +70,6 @@ class Field(object):
         else:
             self.source_attrs = self.source.split('.')
 
-
-
-
     def to_python(self, value):
         return value
 
@@ -99,6 +96,9 @@ class CharField(Field):
             return self.empty_value
         return value
 
+    def to_representation(self,value):
+        return self.to_python(value)
+
 
 class IntegerField(Field):
     default_error_messages = {
@@ -120,6 +120,9 @@ class IntegerField(Field):
             raise ValidationError(self.error_messages['invalid'], code='invalid')
         return value
 
+    def to_representation(self, value):
+        return self.to_python(value)
+
 class DateTimeField(Field):
     
     default_error_messages = {
@@ -139,6 +142,9 @@ class DateTimeField(Field):
         if isinstance(value, datetime.date):
             return datetime.datetime(value.year, value.month, value.day)
 
+    def to_representation(self, value):
+        return self.strptime(value, "%Y-%m-%d %H:%M:%S")
+
     def strptime(self, value, format):
         return datetime.datetime.strptime(value, format)
 
@@ -157,6 +163,9 @@ class JSONField(Field):
             raise ValidationError(self.error_messages['invalid'], code='invalid')
         return value
 
+
+    def to_representation(self, value):
+        return self.to_python(value)
 
 
 if __name__ == '__main__':
