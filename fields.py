@@ -42,8 +42,8 @@ class Field(object):
                 v(value)
             except ValidationError as e:
                 if hasattr(e, 'code') and e.code in self.error_messages:
-                    e.message = self.error_messages[e.code]
-                errors.append(e.message)
+                    e.msg = self.error_messages[e.code]
+                errors.append(e.msg)
         if errors:
             raise ValidationError
 
@@ -129,10 +129,11 @@ class DateTimeField(Field):
         'invalid': 'Enter a valid date.',
     }
 
-    def __init__(self, inpu_formats=None, **kwargs):
+    def __init__(self, input_format=None, present_format="%Y-%m-%d %H:%M:%S", **kwargs):
         Field.__init__(**kwargs)
-        if not inpu_formats:
-            self.inpu_formats = inpu_formats
+        if input_format:
+            self.input_format = input_format
+        self.present_format = present_format
 
     def to_python(self, value):
         if value in self.empty_values:
@@ -143,7 +144,7 @@ class DateTimeField(Field):
             return datetime.datetime(value.year, value.month, value.day)
 
     def to_representation(self, value):
-        return self.strptime(value, "%Y-%m-%d %H:%M:%S")
+        return self.strptime(value, self.present_format)
 
     def strptime(self, value, format):
         return datetime.datetime.strptime(value, format)
@@ -162,6 +163,7 @@ class JSONField(Field):
         except (ValueError, TypeError):
             raise ValidationError(self.error_messages['invalid'], code='invalid')
         return value
+
 
 
     def to_representation(self, value):

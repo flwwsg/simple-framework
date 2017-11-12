@@ -5,7 +5,7 @@ from collections import OrderedDict
 from utils import BindingDict
 from fields import CharField, Field, IntegerField
 from orm_wrapper import DemoPicker
-
+from validators import ValidationError
 
 # get all fields 
 class SerializerMetaclass(type):
@@ -69,29 +69,53 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
     
     def __init__(self, picker, *args, **kwargs):
         self.picker = picker
+        self.errors = []
         BaseSerializer.__init__(self, data, *args, **kwargs)
 
-        # self.map_data()
-
-    def get(self, condition={}):
+    def get(self, condition={}, ignore_fields=[]):
         if not condition:
             res = self.picker.all()
-            return self.to_representation(res)
+        else:
+            res = self.picker.filter(condition)
+        self.validate_fields(res[1])
+        return self.to_representation(res, ignore_fields)
 
-    def to_representation(self, res):
+    def save(self, data):
+        pass
+
+    def is_valid(self, data):
+        for idata in data:
+            for k, v in self.fields.items():
+                try:
+                    v.run_validators(idata[k])
+                except ValidationError as e:
+                    return False
+
+        self.validated_data = data
+        return True
+
+    def validate_fields(self, data):
+        errors = []
+        for k, v in self.fields.items():
+            try:
+                v.validate(data[k])
+            except ValidationError as e:
+                errors.append({k:e.msg})
+        if errors:
+            self.errors = errors
+            raise ValidationError
+
+                
+    def to_representation(self, res, ignore_fields):
         newdata = []
         for ires in res:
-            tmp = {k:v.to_representation(ires[k]) for k, v in self.fields.items()}
+            tmp = {
+                k:self.fields[k].to_representation(ires[k]) 
+                for k in set(self.fields.keys()) -set(ignore_fields)
+                }
             newdata.append(tmp)
 
         return newdata
-                
-
-    # def map_data(self):
-    #     self.data = []
-    #     for idata in self.initial_data:
-    #         tmp = {k:v for k, v in zip(self.fields, idata)}
-    #         self.data.append(tmp)
     
 
 class FooSerializer(Serializer):
@@ -109,5 +133,8 @@ if __name__ == '__main__':
 
     dp = DemoPicker()
     foo = FooSerializer(dp)
-    print(foo.get())
+    try:
+        print(foo.get(ignore_fields=['id']))
+    except ValidationError:
+        print(foo.errors)
 
