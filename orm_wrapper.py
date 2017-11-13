@@ -38,6 +38,7 @@ class DemoPicker(DataPicker):
         return [{'id':1, 'name':'a'}, {'id':2, 'name':'b'}]
 
     def save(self, data):
+        print('creating data:', data)
         return data
 
 

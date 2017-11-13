@@ -70,6 +70,7 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
     def __init__(self, picker, *args, **kwargs):
         self.picker = picker
         self.errors = []
+        self.validated_data = {}
         BaseSerializer.__init__(self, data, *args, **kwargs)
 
     def get(self, condition={}, ignore_fields=[]):
@@ -84,15 +85,22 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
         pass
 
     def is_valid(self, data):
-        for idata in data:
-            for k, v in self.fields.items():
-                try:
-                    v.run_validators(idata[k])
-                except ValidationError as e:
-                    return False
+        errors = []
+        for k, v in self.fields.items():
+            try:
+                v.run_validators(data[k])
+            except ValidationError as e:
+                errors.append(e.msg)
 
-        self.validated_data = data
-        return True
+        if not errors:
+            self.validated_data = data
+            return True
+        else:
+            self.errors = errors
+            return False
+
+    def create(self):
+        self.picker.save(self.validated_data)
 
     def validate_fields(self, data):
         errors = []
@@ -123,7 +131,6 @@ class FooSerializer(Serializer):
     name = CharField()
         
 
-
 if __name__ == '__main__':
     data = [(1, 'a'), (2, 'b'), (3,'c')]
     newdata = []
@@ -134,7 +141,9 @@ if __name__ == '__main__':
     dp = DemoPicker()
     foo = FooSerializer(dp)
     try:
-        print(foo.get(ignore_fields=['id']))
+        foo.get(ignore_fields=['id'])
+        if foo.is_valid(newdata[0]):
+            foo.create()
     except ValidationError:
         print(foo.errors)
 

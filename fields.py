@@ -24,7 +24,7 @@ class Field(object):
             messages.update(getattr(c, 'default_error_messages', {}))
         messages.update(error_messages or {})
         self.error_messages = messages
-
+        self.errors = []
         self.source = source
         self.label = label
         self.parent = None
@@ -45,7 +45,7 @@ class Field(object):
                     e.msg = self.error_messages[e.code]
                 errors.append(e.msg)
         if errors:
-            raise ValidationError
+            raise ValidationError(errors)
 
     def bind(self, field_name, parent):
         assert self.source != field_name, (
