@@ -1,6 +1,7 @@
 
 import copy
 from collections import OrderedDict
+import ast
 
 from utils import BindingDict
 from fields import CharField, Field, IntegerField
@@ -68,7 +69,7 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
     def __init__(self, picker, *args, **kwargs):
         self.picker = picker
         self.errors = []
-        self.validated_data = {}
+        self.validated_data = []
         BaseSerializer.__init__(self, *args, **kwargs)
 
     def get(self, condition={}, ignore_fields=[]):
@@ -99,17 +100,6 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
     def create(self):
         self.picker.save(self.validated_data)
 
-    def validate_fields(self, data):
-        errors = []
-        for k, v in self.fields.items():
-            try:
-                v.validate(data[k])
-            except ValidationError as e:
-                errors.append({k:e.msg})
-        if errors:
-            self.errors = errors
-            raise ValidationError
-
                 
     def to_representation(self, res, ignore_fields):
         newdata = []
@@ -138,6 +128,75 @@ class DCSerializer(Serializer):
             newdata.append(tmp)
 
         return newdata
+
+    def is_valid(self, data):
+        errors = []
+        validated_data = {}
+        for fieldname, v in self.fields.items():
+            k = self.underline_to_camel(fieldname)
+            if k in data.keys():
+                value = data[k]
+            else:
+                continue
+
+            try:
+                v.run_validators(value)
+                validated_data[fieldname] = value
+            except ValidationError as e:
+                errors.append(e.msg)
+
+        if not errors:
+            self.validated_data.append(validated_data)
+            return True
+        else:
+            raise ValidationError(errors)
+
+    def validate(self,data):
+        errors = []
+        for fieldname, v in self.fields.items():
+            k = self.underline_to_camel(fieldname)
+            if k not in data.keys() and v.required:
+                errors.append({k: v.error_messages['required']})
+
+        if errors:
+            raise ValidationError(errors)
+
+    def is_valid_all(self, data):
+        for idata in data:
+            try:
+                self.validate(idata)
+                self.is_valid(idata)
+            except ValidationError as e:
+                self.errors.extend(e.msg)
+
+        if not self.errors:
+            return True
+        else:
+            return False
+
+    def create(self):
+        for idata in self.validated_data:
+            if 'id' in idata.keys():
+                idata.pop('id')
+            idata['version'] = 0
+            self.picker.save(idata)
+
+    def update(self):
+        for idata in self.validated_data:
+            if 'id' not in idata.keys():
+                continue
+            res = self.picker.get({'id':idata['id']})
+            res.version += 1
+            for k in idata.keys():
+                if k != 'id' or k != 'version':
+                    setattr(res,k,idata[k])
+            res.save()
+
+    def delete(self, idlist):
+        if isinstance(idlist, str):
+            idlist = ast.literal_eval(idlist)
+        errors = self.picker.delete(idlist)
+        return errors
 
     @classmethod
     def underline_to_camel(cls,snake_str):

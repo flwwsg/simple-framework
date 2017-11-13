@@ -22,6 +22,33 @@ class DataPicker(object):
     def save(self, data):
         return self.adt.objects.create(**data)
 
+    def delete(self, idlist):
+        '''
+        :param idlist:
+        :return:
+        '''
+        errors = []
+        for idx in idlist:
+            try:
+                newidx = int(idx)
+            except (ValueError, TypeError):
+                errors.append(idx)
+            res = self.adt.objects.get(id=newidx)
+            if res:
+                try:
+                    res.delete()
+                    print('==' * 80)
+                    print('deleting id={}'.format(newidx))
+                except Exception:
+                    errors.append(idx)
+            else:
+                errors.append(idx)
+
+        return errors
+
+
+
+
 
 
 class DemoPicker(DataPicker):
