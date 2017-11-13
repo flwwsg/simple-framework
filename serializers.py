@@ -33,9 +33,7 @@ class SerializerMetaclass(type):
 # derived from django-rest-framework
 class BaseSerializer(Field):
     
-    def __init__(self, data, *args, **kwargs):
-        self.initial_data = data
-
+    def __init__(self, *args, **kwargs):
         super(BaseSerializer, self).__init__(*args, **kwargs)
 
     @property
@@ -71,14 +69,13 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
         self.picker = picker
         self.errors = []
         self.validated_data = {}
-        BaseSerializer.__init__(self, data, *args, **kwargs)
+        BaseSerializer.__init__(self, *args, **kwargs)
 
     def get(self, condition={}, ignore_fields=[]):
         if not condition:
             res = self.picker.all()
         else:
             res = self.picker.filter(condition)
-        self.validate_fields(res[1])
         return self.to_representation(res, ignore_fields)
 
     def save(self, data):
@@ -118,13 +115,58 @@ class Serializer(BaseSerializer, metaclass=SerializerMetaclass):
         newdata = []
         for ires in res:
             tmp = {
-                k:self.fields[k].to_representation(ires[k]) 
-                for k in set(self.fields.keys()) -set(ignore_fields)
+                k:self.fields[k].to_representation(ires[k])
+                for k in set(self.fields.keys()) - set(ignore_fields)
                 }
             newdata.append(tmp)
 
         return newdata
-    
+
+
+class DCSerializer(Serializer):
+
+    def __init__(self, picker, *args, **kwargs):
+        Serializer.__init__(self, picker, *args, **kwargs)
+
+    def to_representation(self, res, ignore_fields):
+        newdata = []
+        for ires in res:
+            tmp = {
+                self.underline_to_camel(k):self.fields[k].to_representation(getattr(ires, k))
+                for k in set(self.fields.keys()) - set(ignore_fields)
+                }
+            newdata.append(tmp)
+
+        return newdata
+
+    @classmethod
+    def underline_to_camel(cls,snake_str):
+        """
+        下划线命名转驼峰命名
+        :param snake_str:
+        :return:
+        """
+        components = snake_str.split('_')
+        if '_' not in snake_str:
+            return snake_str
+        return components[0] + "".join(x.title() for x in components[1:])
+
+    @classmethod
+    def camel_to_underline(cls, field_name):
+        """
+        驼峰命名法转小写加下划线
+
+        Role > role
+        roleName > role_name
+        RoleName > role_name
+        _RoleName > __role_name
+        role_name > role_name
+        """
+        return ''.join(
+            [c.lower() if not c.isalpha() or c.islower() or (c.isupper() and idx == 0)
+             else '_%c' % c.lower()
+             for idx, c in enumerate(field_name)])
+
 
 class FooSerializer(Serializer):
     id = IntegerField()    

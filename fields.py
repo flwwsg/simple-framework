@@ -130,7 +130,7 @@ class DateTimeField(Field):
     }
 
     def __init__(self, input_format=None, present_format="%Y-%m-%d %H:%M:%S", **kwargs):
-        Field.__init__(**kwargs)
+        Field.__init__(self,**kwargs)
         if input_format:
             self.input_format = input_format
         self.present_format = present_format
@@ -144,7 +144,10 @@ class DateTimeField(Field):
             return datetime.datetime(value.year, value.month, value.day)
 
     def to_representation(self, value):
-        return self.strptime(value, self.present_format)
+        if isinstance(value, datetime.datetime):
+            return value.strftime(self.present_format)
+        elif isinstance(value, datetime.date):
+            return datetime.datetime(value.year, value.month, value.day).strftime(self.present_format)
 
     def strptime(self, value, format):
         return datetime.datetime.strptime(value, format)
@@ -167,7 +170,10 @@ class JSONField(Field):
 
 
     def to_representation(self, value):
-        return self.to_python(value)
+        if isinstance(value, str):
+            return value
+        else:
+            return json.dumps(value)
 
 
 if __name__ == '__main__':
